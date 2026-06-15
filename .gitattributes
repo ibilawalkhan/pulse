@@ -1,0 +1,8 @@
+# Normalise line endings to LF in the repository for cross-platform consistency.
+* text=auto eol=lf
+
+# Binary / generated lockfile should not be diffed.
+package-lock.json -diff
+
+# Shell scripts must keep LF even on Windows checkouts.
+*.sh text eol=lf

@@ -1,0 +1,39 @@
+# Local dependencies for Pulse: Postgres + LocalStack (SQS).
+# Application services run on the host via `npm run dev`.
+services:
+  postgres:
+    image: postgres:16
+    container_name: pulse-postgres
+    environment:
+      POSTGRES_USER: pulse
+      POSTGRES_PASSWORD: pulse
+      POSTGRES_DB: pulse
+    ports:
+      - '5432:5432'
+    volumes:
+      - pulse-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pulse -d pulse']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:3
+    container_name: pulse-localstack
+    environment:
+      SERVICES: sqs
+      DEFAULT_REGION: ap-southeast-2
+      AWS_DEFAULT_REGION: ap-southeast-2
+    ports:
+      - '4566:4566'
+    volumes:
+      - ./infra/localstack/init:/etc/localstack/init/ready.d
+    healthcheck:
+      test: ['CMD-SHELL', 'awslocal sqs list-queues || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pulse-pgdata:

@@ -1,0 +1,32 @@
+{
+  "name": "@pulse/scheduler",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.600.0",
+    "@nestjs/common": "^10.3.9",
+    "@nestjs/config": "^3.2.2",
+    "@nestjs/core": "^10.3.9",
+    "@nestjs/schedule": "^4.0.2",
+    "@pulse/db": "*",
+    "@pulse/shared": "*",
+    "nestjs-pino": "^4.1.0",
+    "pino-http": "^10.1.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.3.2",
+    "@nestjs/schematics": "^10.1.1",
+    "@nestjs/testing": "^10.3.9",
+    "pino-pretty": "^11.2.1",
+    "source-map-support": "^0.5.21",
+    "ts-loader": "^9.5.1"
+  }
+}
