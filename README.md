@@ -2,7 +2,7 @@
 
 A self-hosted uptime monitoring and alerting platform. Users register HTTP endpoints; Pulse checks them on schedule, records response time and status, visualises uptime on a dashboard, and sends alerts (email + Slack) when endpoints go down or recover.
 
-**Live demo:** `https://pulse.<your-domain>.com` *(add once deployed)*
+**Live demo:** `Coming Soon` 
 **Stack:** NestJS · PostgreSQL · AWS (ECS Fargate, SQS, SES, ECR, CloudWatch) · Terraform · GitHub Actions · React
 
 > **Why this project exists:** built to demonstrate production-grade backend and cloud engineering — async job processing, infrastructure as code, CI/CD, and observability — not as a product. Every design decision is documented in [Design Decisions](#9-design-decisions).
