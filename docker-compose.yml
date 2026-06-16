@@ -2,14 +2,16 @@
 # Application services run on the host via `npm run dev`.
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
     container_name: pulse-postgres
     environment:
       POSTGRES_USER: pulse
       POSTGRES_PASSWORD: pulse
       POSTGRES_DB: pulse
     ports:
-      - '5432:5432'
+      # Host port is configurable (POSTGRES_PORT) to avoid clashing with a
+      # native Postgres already on 5432; container port stays 5432.
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - pulse-pgdata:/var/lib/postgresql/data
     healthcheck:
