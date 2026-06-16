@@ -6,8 +6,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Connection URL lives in prisma.config.ts (Prisma 7); the runtime client
-  // connects via a driver adapter (packages/db/src/index.ts).
 }
 
 enum MonitorStatus {
