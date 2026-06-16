@@ -426,6 +426,7 @@ All endpoints validated with `class-validator` DTOs; errors follow a consistent 
 5. **Fargate over EC2/Kubernetes.** No cluster to manage, per-task IAM roles, free-tier friendly. Kubernetes would be résumé-driven over-engineering at this scale — and saying so is the stronger interview answer.
 6. **OIDC deploy auth, no stored AWS keys.** GitHub's OIDC provider assumes a scoped IAM role at deploy time. Eliminates the most common CI credential-leak risk.
 7. **JWT (15 min) + httpOnly refresh cookie.** Short-lived access token limits blast radius; refresh token never exposed to JS.
+8. **Prisma 7 with a driver adapter (`@prisma/adapter-pg`).** Prisma 7 removes the schema-level connection URL: the CLI/Migrate reads it from `packages/db/prisma.config.ts`, and the runtime `PrismaClient` connects through a Postgres driver adapter passed to its constructor. The adapter (`@prisma/adapter-pg` + `pg`) is confined to `packages/db`, which exposes a `createPrismaAdapter()` factory so the apps depend only on `@pulse/db`. Trade-off: a little more wiring than the old single-URL config, in exchange for being on the supported, current major version and the standard Rust-free query path.
 
 ---
 
