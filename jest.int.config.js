@@ -10,4 +10,7 @@ module.exports = {
     '^@pulse/shared(.*)$': '<rootDir>/packages/shared/src$1',
     '^@pulse/db(.*)$': '<rootDir>/packages/db/src$1',
   },
+  transform: {
+    '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.base.json' }],
+  },
 };

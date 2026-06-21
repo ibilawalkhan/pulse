@@ -5,7 +5,7 @@ import { LoggerModule } from 'nestjs-pino';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../../.env'] }),
     ScheduleModule.forRoot(),
     LoggerModule.forRoot({
       pinoHttp: {
