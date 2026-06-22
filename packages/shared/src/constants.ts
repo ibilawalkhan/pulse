@@ -2,6 +2,21 @@
 export const CHECK_INTERVALS_SECONDS = [60, 300, 900] as const;
 export type CheckIntervalSeconds = (typeof CHECK_INTERVALS_SECONDS)[number];
 
+/** Supported HTTP methods for a monitor check. */
+export const HTTP_METHODS = ['GET', 'POST', 'HEAD'] as const;
+export type HttpMethod = (typeof HTTP_METHODS)[number];
+
+/** Bounds for monitor configuration values (validation + sane limits). */
+export const MONITOR_LIMITS = {
+  nameMaxLength: 120,
+  expectedStatusMin: 100,
+  expectedStatusMax: 599,
+  timeoutMsMin: 1000,
+  timeoutMsMax: 30_000,
+  failureThresholdMin: 1,
+  failureThresholdMax: 10,
+} as const;
+
 /** Default number of consecutive failures before UP -> DOWN (README §1, F4). */
 export const DEFAULT_FAILURE_THRESHOLD = 2;
 

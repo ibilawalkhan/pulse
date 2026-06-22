@@ -1,3 +1,5 @@
+import type { HttpMethod } from './constants';
+
 /** Payload enqueued by the scheduler and consumed by the worker */
 export interface CheckJobMessage {
   monitorId: string;
@@ -27,4 +29,22 @@ export interface AuthResponse {
 /** Body returned by POST /auth/refresh. */
 export interface RefreshResponse {
   accessToken: string;
+}
+
+export type MonitorStatus = 'UP' | 'DOWN' | 'PAUSED' | 'PENDING';
+
+/** Public representation of a monitor returned by the API (no owner id). */
+export interface MonitorResponse {
+  id: string;
+  name: string;
+  url: string;
+  method: HttpMethod;
+  intervalSeconds: number;
+  expectedStatus: number;
+  timeoutMs: number;
+  failureThreshold: number;
+  status: MonitorStatus;
+  consecutiveFailures: number;
+  nextCheckAt: string;
+  createdAt: string;
 }
