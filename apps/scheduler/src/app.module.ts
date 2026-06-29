@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
+import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { LoggerModule } from 'nestjs-pino';
         customProps: () => ({ service: 'pulse-scheduler' }),
       },
     }),
-    // SchedulerModule (claim + enqueue loop) is added in milestone M2.
+    SchedulerModule,
   ],
 })
 export class AppModule {}
