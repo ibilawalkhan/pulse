@@ -54,6 +54,22 @@ export function isPublicHttpUrl(value: unknown): boolean {
   return true;
 }
 
+/**
+ * Whether an IP literal (v4 or v6) falls in a private/loopback/reserved range.
+ * Shared between the input validator and the worker's runtime DNS re-check so
+ * both use the exact same range definitions. Returns false for non-IP strings.
+ */
+export function isPrivateOrReservedIp(ip: string): boolean {
+  const normalized = ip.toLowerCase();
+  if (isIpv4(normalized)) {
+    return isPrivateOrReservedIpv4(normalized);
+  }
+  if (normalized.includes(':')) {
+    return isPrivateOrReservedIpv6(normalized);
+  }
+  return false;
+}
+
 function isIpv4(host: string): boolean {
   const parts = host.split('.');
   if (parts.length !== 4) {

@@ -14,7 +14,7 @@ export class SchedulerRepository {
    * next_check_at by its own interval and returning the claimed ids in one
    * UPDATE ... RETURNING statement.
    *
-   * Claiming *before* enqueueing is the core idempotency invariant of the scheduler: even if 
+   * Claiming *before* enqueueing is the core idempotency invariant of the scheduler: even if
    * a crash between this update and the SQS publish skips one cycle at worst —
    * it never double-enqueues a monitor.
    */

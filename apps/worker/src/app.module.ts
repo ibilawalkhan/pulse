@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { WorkerModule } from './worker/worker.module';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { LoggerModule } from 'nestjs-pino';
         customProps: () => ({ service: 'pulse-worker' }),
       },
     }),
-    // CheckerModule, IncidentsModule, AlertsModule are added in milestone M2.
+    WorkerModule,
   ],
 })
 export class AppModule {}
