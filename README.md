@@ -481,7 +481,7 @@ Production values live in AWS Secrets Manager and are injected into task definit
 
 Each milestone ends in a **demoable state** and a tagged release.
 
-### M1 — Core API + local environment (Week 1)
+### M1 — Core API + local environment
 - [ ] Monorepo scaffolding (npm workspaces), ESLint/Prettier, commit hooks
 - [ ] Prisma schema (section 3) + migrations
 - [ ] Auth module (register/login/refresh, guards, e2e tests)
@@ -490,7 +490,7 @@ Each milestone ends in a **demoable state** and a tagged release.
 - [ ] `ci.yml`: lint + test + build on every PR
 - **Demo:** create a monitor via Swagger UI locally
 
-### M2 — Scheduler, worker, alerting (Week 2)
+### M2 — Scheduler, worker, alerting 
 - [ ] Scheduler service: claim + enqueue loop, singleton, graceful shutdown
 - [ ] Worker: SQS consumer, HTTP checker (timeouts, redirects, error taxonomy)
 - [ ] Incident state machine + unit tests covering threshold edge cases
@@ -498,14 +498,14 @@ Each milestone ends in a **demoable state** and a tagged release.
 - [ ] DLQ handling: poison messages logged and parked
 - **Demo:** point a monitor at a test endpoint, kill the endpoint, watch a Slack alert arrive locally
 
-### M3 — AWS + Terraform + CD (Week 3)
+### M3 — AWS + Terraform + CD 
 - [ ] Terraform: VPC, ECR, RDS, SQS, ECS services, ALB, Secrets Manager
 - [ ] `deploy.yml`: OIDC → build → push → migrate → deploy → smoke test
 - [ ] Route 53 + ACM cert + HTTPS
 - [ ] CloudWatch log groups + the four alarms from section 5
 - **Demo:** merge a PR, watch it auto-deploy, see the live `/health` endpoint
 
-### M4 — Dashboard + polish (Week 4)
+### M4 — Dashboard + polish 
 - [ ] React dashboard: monitor list, status badges, response-time chart (recharts), incident table
 - [ ] Uptime aggregation endpoint with time-bucketing SQL
 - [ ] Retention job for old check results
