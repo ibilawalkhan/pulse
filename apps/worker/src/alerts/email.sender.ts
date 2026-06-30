@@ -18,7 +18,6 @@ export class EmailSender {
   }
 
   async send(to: string, subject: string, body: string): Promise<void> {
-
     await this.ses.send(
       new SendEmailCommand({
         Source: this.from,

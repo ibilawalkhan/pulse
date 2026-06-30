@@ -6,6 +6,10 @@ export type CheckIntervalSeconds = (typeof CHECK_INTERVALS_SECONDS)[number];
 export const HTTP_METHODS = ['GET', 'POST', 'HEAD'] as const;
 export type HttpMethod = (typeof HTTP_METHODS)[number];
 
+/** Alert channel delivery types. */
+export const ALERT_CHANNEL_TYPES = ['EMAIL', 'SLACK_WEBHOOK'] as const;
+export type AlertChannelType = (typeof ALERT_CHANNEL_TYPES)[number];
+
 /** Bounds for monitor configuration values (validation + sane limits). */
 export const MONITOR_LIMITS = {
   nameMaxLength: 120,

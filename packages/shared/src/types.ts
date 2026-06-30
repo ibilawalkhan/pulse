@@ -1,4 +1,4 @@
-import type { HttpMethod } from './constants';
+import type { AlertChannelType, HttpMethod } from './constants';
 
 /** Payload enqueued by the scheduler and consumed by the worker */
 export interface CheckJobMessage {
@@ -47,4 +47,12 @@ export interface MonitorResponse {
   consecutiveFailures: number;
   nextCheckAt: string;
   createdAt: string;
+}
+
+/** Public representation of an alert channel returned by the API. */
+export interface AlertChannelResponse {
+  id: string;
+  type: AlertChannelType;
+  destination: string;
+  enabled: boolean;
 }
