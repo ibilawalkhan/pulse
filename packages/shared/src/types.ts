@@ -56,3 +56,12 @@ export interface AlertChannelResponse {
   destination: string;
   enabled: boolean;
 }
+
+/** Public representation of an incident (outage) returned by the API. */
+export interface IncidentResponse {
+  id: string;
+  startedAt: string;
+  resolvedAt: string | null;
+  cause: string | null;
+  durationSeconds: number;
+}
