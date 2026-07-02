@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
+import { RetentionModule } from './retention/retention.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
@@ -16,6 +17,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
       },
     }),
     SchedulerModule,
+    RetentionModule,
   ],
 })
 export class AppModule {}
