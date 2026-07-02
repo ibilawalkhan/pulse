@@ -1,4 +1,4 @@
-import type { AlertChannelType, HttpMethod } from './constants';
+import type { AlertChannelType, HttpMethod, ResultBucketSize, UptimeWindow } from './constants';
 
 /** Payload enqueued by the scheduler and consumed by the worker */
 export interface CheckJobMessage {
@@ -64,4 +64,30 @@ export interface IncidentResponse {
   resolvedAt: string | null;
   cause: string | null;
   durationSeconds: number;
+}
+
+/** Response for GET /monitors/:id/uptime. */
+export interface UptimeResponse {
+  window: UptimeWindow;
+  /** Successful checks / total checks over the window, 0..1 (1 when no data). */
+  uptime: number;
+  totalChecks: number;
+  successfulChecks: number;
+}
+
+/** One time bucket of the response-time series. */
+export interface ResultBucket {
+  bucketStart: string;
+  /** Average response time (ms) of successful checks in the bucket, null if none. */
+  avgResponseMs: number | null;
+  totalChecks: number;
+  successfulChecks: number;
+}
+
+/** Response for GET /monitors/:id/results. */
+export interface ResultsResponse {
+  from: string;
+  to: string;
+  bucket: ResultBucketSize;
+  buckets: ResultBucket[];
 }

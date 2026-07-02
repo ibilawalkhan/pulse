@@ -10,6 +10,14 @@ export type HttpMethod = (typeof HTTP_METHODS)[number];
 export const ALERT_CHANNEL_TYPES = ['EMAIL', 'SLACK_WEBHOOK'] as const;
 export type AlertChannelType = (typeof ALERT_CHANNEL_TYPES)[number];
 
+/** Windows for the uptime aggregation endpoint. */
+export const UPTIME_WINDOWS = ['24h', '7d', '30d'] as const;
+export type UptimeWindow = (typeof UPTIME_WINDOWS)[number];
+
+/** Bucket sizes for the time-bucketed results endpoint. */
+export const RESULT_BUCKETS = ['1m', '5m', '15m', '1h', '6h', '1d'] as const;
+export type ResultBucketSize = (typeof RESULT_BUCKETS)[number];
+
 /** Bounds for monitor configuration values (validation + sane limits). */
 export const MONITOR_LIMITS = {
   nameMaxLength: 120,
