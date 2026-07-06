@@ -9,13 +9,18 @@ export class MonitorsService {
   constructor(private readonly repository: MonitorsRepository) {}
 
   async list(userId: string): Promise<MonitorResponse[]> {
-    const monitors = await this.repository.findManyByUser(userId);
-    return monitors.map(toMonitorResponse);
+    const [monitors, stats] = await Promise.all([
+      this.repository.findManyByUser(userId),
+      this.repository.getStatsForUser(userId),
+    ]);
+    const statsById = new Map(stats.map((s) => [s.id, s]));
+    return monitors.map((m) => toMonitorResponse(m, statsById.get(m.id)));
   }
 
   async get(userId: string, id: string): Promise<MonitorResponse> {
     const monitor = await this.getOwnedOrThrow(userId, id);
-    return toMonitorResponse(monitor);
+    const stats = await this.repository.getStatsForMonitor(id);
+    return toMonitorResponse(monitor, stats ?? undefined);
   }
 
   async create(userId: string, dto: CreateMonitorDto): Promise<MonitorResponse> {
@@ -58,7 +63,8 @@ export class MonitorsService {
     }
 
     const updated = await this.repository.update(id, data);
-    return toMonitorResponse(updated);
+    const stats = await this.repository.getStatsForMonitor(id);
+    return toMonitorResponse(updated, stats ?? undefined);
   }
 
   async remove(userId: string, id: string): Promise<void> {

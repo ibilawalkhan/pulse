@@ -1,10 +1,17 @@
-import { Moon, Sun } from 'lucide-react';
+import { LogOut, Moon, Sun } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { useTheme } from '../lib/theme';
 
 export function Settings() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
+  const navigate = useNavigate();
+
+  const handleLogout = (): void => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <>
@@ -21,14 +28,13 @@ export function Settings() {
         </div>
         <div className="card-pad">
           <div className="field">
-            <label htmlFor="s-name">Name</label>
-            <input id="s-name" className="input" defaultValue={user?.name} />
-          </div>
-          <div className="field">
             <label htmlFor="s-email">Email</label>
-            <input id="s-email" className="input" defaultValue={user?.email} />
+            <input id="s-email" className="input" value={user?.email ?? ''} readOnly />
           </div>
-          <button className="btn btn-primary">Save changes</button>
+          <button className="btn btn-ghost" onClick={handleLogout}>
+            <LogOut size={16} />
+            Sign out
+          </button>
         </div>
       </div>
 

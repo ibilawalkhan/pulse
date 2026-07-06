@@ -1,35 +1,74 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { currentUser } from './mock';
-import type { CurrentUser } from './types';
+import { api, setAccessToken, setOnUnauthorized } from './api';
+import type { AuthUser } from './types';
+
+type Status = 'loading' | 'authenticated' | 'anonymous';
 
 interface AuthCtx {
-  user: CurrentUser | null;
-  login: (email: string) => void;
+  user: AuthUser | null;
+  status: Status;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
-const STORAGE_KEY = 'pulse-auth';
+
+/** Decode the user (sub/email) from a JWT access token without verifying it. */
+function decodeUser(token: string): AuthUser | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1])) as { sub: string; email: string };
+    return { id: payload.sub, email: payload.email };
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<CurrentUser | null>(() => {
-    return localStorage.getItem(STORAGE_KEY) ? currentUser : null;
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [status, setStatus] = useState<Status>('loading');
 
-  // Dummy auth: accept any credentials and sign in as the demo user.
-  const login = (email: string): void => {
-    const u: CurrentUser = { ...currentUser, email: email || currentUser.email };
-    localStorage.setItem(STORAGE_KEY, '1');
-    setUser(u);
+  useEffect(() => {
+    // If a 401 survives a refresh attempt, drop the session.
+    setOnUnauthorized(() => {
+      setAccessToken(null);
+      setUser(null);
+      setStatus('anonymous');
+    });
+
+    // Restore a session from the httpOnly refresh cookie on first load.
+    api.auth
+      .refresh()
+      .then((data) => {
+        setAccessToken(data.accessToken);
+        setUser(decodeUser(data.accessToken));
+        setStatus('authenticated');
+      })
+      .catch(() => setStatus('anonymous'));
+  }, []);
+
+  const login = async (email: string, password: string): Promise<void> => {
+    const data = await api.auth.login(email, password);
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+    setStatus('authenticated');
+  };
+
+  const register = async (email: string, password: string): Promise<void> => {
+    const data = await api.auth.register(email, password);
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+    setStatus('authenticated');
   };
 
   const logout = (): void => {
-    localStorage.removeItem(STORAGE_KEY);
+    setAccessToken(null);
     setUser(null);
+    setStatus('anonymous');
   };
 
-  return <Ctx.Provider value={{ user, login, logout }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, status, login, register, logout }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth(): AuthCtx {

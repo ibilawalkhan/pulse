@@ -17,13 +17,14 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: {
-      // Proxy API calls to the NestJS api during local development.
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-    },
+    // Proxy the real API routes to the NestJS api during local dev (no prefix),
+    // so same-origin auth cookies (scoped to /auth/refresh) are sent correctly.
+    // These paths don't collide with the SPA routes (/app, /login, /register).
+    proxy: Object.fromEntries(
+      ['/auth', '/monitors', '/alert-channels', '/health', '/docs'].map((path) => [
+        path,
+        { target: 'http://localhost:3000', changeOrigin: true },
+      ]),
+    ),
   },
 });

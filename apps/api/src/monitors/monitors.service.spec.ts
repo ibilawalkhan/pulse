@@ -28,7 +28,16 @@ function makeMonitor(overrides: Partial<Monitor> = {}): Monitor {
 describe('MonitorsService', () => {
   let service: MonitorsService;
   let repository: jest.Mocked<
-    Pick<MonitorsRepository, 'findManyByUser' | 'findByIdForUser' | 'create' | 'update' | 'delete'>
+    Pick<
+      MonitorsRepository,
+      | 'findManyByUser'
+      | 'findByIdForUser'
+      | 'create'
+      | 'update'
+      | 'delete'
+      | 'getStatsForUser'
+      | 'getStatsForMonitor'
+    >
   >;
 
   beforeEach(() => {
@@ -38,6 +47,8 @@ describe('MonitorsService', () => {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      getStatsForUser: jest.fn().mockResolvedValue([]),
+      getStatsForMonitor: jest.fn().mockResolvedValue(null),
     };
     service = new MonitorsService(repository as unknown as MonitorsRepository);
   });

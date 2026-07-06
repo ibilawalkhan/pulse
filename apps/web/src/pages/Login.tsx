@@ -1,26 +1,45 @@
 import { LogIn } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../components/AuthLayout';
+import { apiErrorMessage } from '../lib/api';
 import { useAuth } from '../lib/auth';
 
 export function Login() {
-  const { login } = useAuth();
+  const { login, status } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('kbilawal84437@gmail.com');
-  const [password, setPassword] = useState('demo-password');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const onSubmit = (e: FormEvent): void => {
+  if (status === 'authenticated') {
+    return <Navigate to="/app" replace />;
+  }
+
+  const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
-    login(email);
-    navigate('/app');
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(email, password);
+      navigate('/app');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Invalid email or password'));
+      setSubmitting(false);
+    }
   };
 
   return (
     <AuthLayout>
       <h1>Welcome back</h1>
       <p className="sub">Sign in to your Pulse dashboard.</p>
+      {error && (
+        <div className="banner banner-danger" style={{ marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
       <form onSubmit={onSubmit}>
         <div className="field">
           <label htmlFor="email">Email</label>
@@ -45,11 +64,15 @@ export function Login() {
             placeholder="••••••••"
             required
           />
-          <span className="hint">Demo mode — any credentials sign you in.</span>
         </div>
-        <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          style={{ width: '100%' }}
+          disabled={submitting}
+        >
           <LogIn size={16} />
-          Sign in
+          {submitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
       <div className="auth-switch">

@@ -1,8 +1,21 @@
 import type { Monitor } from '@pulse/db';
 import type { HttpMethod, MonitorResponse, MonitorStatus } from '@pulse/shared';
 
-/** Map a Monitor entity to its public API representation (drops userId). */
-export function toMonitorResponse(monitor: Monitor): MonitorResponse {
+/** Derived stats merged into the monitor response. */
+export interface MonitorStats {
+  uptime24h: number;
+  lastResponseMs: number | null;
+  lastCheckedAt: Date | null;
+}
+
+/** Defaults for a monitor with no checks yet (freshly created). */
+const EMPTY_STATS: MonitorStats = { uptime24h: 1, lastResponseMs: null, lastCheckedAt: null };
+
+/** Map a Monitor entity (+ derived stats) to its public API representation. */
+export function toMonitorResponse(
+  monitor: Monitor,
+  stats: MonitorStats = EMPTY_STATS,
+): MonitorResponse {
   return {
     id: monitor.id,
     name: monitor.name,
@@ -16,5 +29,8 @@ export function toMonitorResponse(monitor: Monitor): MonitorResponse {
     consecutiveFailures: monitor.consecutiveFailures,
     nextCheckAt: monitor.nextCheckAt.toISOString(),
     createdAt: monitor.createdAt.toISOString(),
+    uptime24h: stats.uptime24h,
+    lastResponseMs: stats.lastResponseMs,
+    lastCheckedAt: stats.lastCheckedAt ? stats.lastCheckedAt.toISOString() : null,
   };
 }

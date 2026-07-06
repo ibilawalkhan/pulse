@@ -3,9 +3,10 @@ import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from '../components/Modal';
-import { EmptyState, MethodTag, StatusPill, UptimeStrip } from '../components/ui';
+import { EmptyState, ErrorState, Loading, MethodTag, StatusPill } from '../components/ui';
+import { api, apiErrorMessage } from '../lib/api';
 import { formatInterval, formatResponse, formatUptime, timeAgo } from '../lib/format';
-import { getCheckSeries, monitors as seedMonitors } from '../lib/mock';
+import { useApi } from '../lib/useApi';
 import type { HttpMethod, Monitor, MonitorStatus } from '../lib/types';
 
 type Filter = 'ALL' | MonitorStatus;
@@ -20,12 +21,16 @@ const blankForm = {
 };
 
 export function Monitors() {
-  const [list, setList] = useState<Monitor[]>(seedMonitors);
+  const { data, loading, error, reload } = useApi(() => api.monitors.list(), []);
   const [filter, setFilter] = useState<Filter>('ALL');
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [form, setForm] = useState(blankForm);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const list: Monitor[] = data ?? [];
 
   const filtered = useMemo(() => {
     return list.filter((m) => {
@@ -38,52 +43,50 @@ export function Monitors() {
     });
   }, [list, filter, query]);
 
-  const counts = useMemo(() => {
-    return {
-      ALL: list.length,
-      UP: list.filter((m) => m.status === 'UP').length,
-      DOWN: list.filter((m) => m.status === 'DOWN').length,
-      PAUSED: list.filter((m) => m.status === 'PAUSED').length,
-      PENDING: list.filter((m) => m.status === 'PENDING').length,
-    } as Record<Filter, number>;
-  }, [list]);
+  const counts = useMemo(
+    () =>
+      ({
+        ALL: list.length,
+        UP: list.filter((m) => m.status === 'UP').length,
+        DOWN: list.filter((m) => m.status === 'DOWN').length,
+        PAUSED: list.filter((m) => m.status === 'PAUSED').length,
+        PENDING: list.filter((m) => m.status === 'PENDING').length,
+      }) as Record<Filter, number>,
+    [list],
+  );
 
-  const togglePause = (id: string): void => {
-    setList((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, status: m.status === 'PAUSED' ? 'UP' : 'PAUSED' } : m,
-      ),
-    );
+  const togglePause = async (m: Monitor): Promise<void> => {
     setMenuFor(null);
+    await api.monitors.update(m.id, { paused: m.status !== 'PAUSED' });
+    reload();
   };
 
-  const remove = (id: string): void => {
-    setList((prev) => prev.filter((m) => m.id !== id));
+  const remove = async (id: string): Promise<void> => {
     setMenuFor(null);
+    await api.monitors.remove(id);
+    reload();
   };
 
-  const create = (e: FormEvent): void => {
+  const create = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
-    const newMonitor: Monitor = {
-      id: `mon_${Date.now()}`,
-      name: form.name || 'Untitled monitor',
-      url: form.url,
-      method: form.method,
-      intervalSeconds: form.intervalSeconds,
-      expectedStatus: Number(form.expectedStatus),
-      timeoutMs: 10000,
-      status: 'PENDING',
-      consecutiveFailures: 0,
-      uptime24h: 1,
-      uptime7d: 1,
-      uptime30d: 1,
-      lastResponseMs: null,
-      lastCheckedAt: null,
-      createdAt: new Date().toISOString(),
-    };
-    setList((prev) => [newMonitor, ...prev]);
-    setForm(blankForm);
-    setOpen(false);
+    setFormError(null);
+    setSaving(true);
+    try {
+      await api.monitors.create({
+        name: form.name,
+        url: form.url,
+        method: form.method,
+        intervalSeconds: form.intervalSeconds,
+        expectedStatus: Number(form.expectedStatus),
+      });
+      setForm(blankForm);
+      setOpen(false);
+      reload();
+    } catch (err) {
+      setFormError(apiErrorMessage(err, 'Could not create monitor'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -118,11 +121,19 @@ export function Monitors() {
       </div>
 
       <div className="card">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <Loading label="Loading monitors…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={reload} />
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Search size={22} />}
-            title="No monitors found"
-            text="Try a different filter or search term, or add a new monitor to start watching an endpoint."
+            title={list.length === 0 ? 'No monitors yet' : 'No monitors found'}
+            text={
+              list.length === 0
+                ? 'Add your first monitor to start watching an endpoint.'
+                : 'Try a different filter or search term.'
+            }
             action={
               <button className="btn btn-primary" onClick={() => setOpen(true)}>
                 <Plus size={16} />
@@ -136,8 +147,7 @@ export function Monitors() {
               <tr>
                 <th>Monitor</th>
                 <th>Status</th>
-                <th>Last 24h</th>
-                <th>Uptime</th>
+                <th>Uptime 24h</th>
                 <th>Response</th>
                 <th>Interval</th>
                 <th>Last check</th>
@@ -160,9 +170,6 @@ export function Monitors() {
                   </td>
                   <td>
                     <StatusPill status={m.status} />
-                  </td>
-                  <td style={{ width: 150 }}>
-                    <UptimeStrip series={getCheckSeries(m.id, '24h')} bars={28} />
                   </td>
                   <td className="cell-strong">{formatUptime(m.uptime24h)}</td>
                   <td>{formatResponse(m.lastResponseMs)}</td>
@@ -192,7 +199,7 @@ export function Monitors() {
                         <button
                           className="nav-item"
                           style={{ width: '100%' }}
-                          onClick={() => togglePause(m.id)}
+                          onClick={() => togglePause(m)}
                         >
                           {m.status === 'PAUSED' ? <Play size={16} /> : <Pause size={16} />}
                           {m.status === 'PAUSED' ? 'Resume' : 'Pause'}
@@ -224,14 +231,24 @@ export function Monitors() {
             <button className="btn btn-ghost" onClick={() => setOpen(false)}>
               Cancel
             </button>
-            <button className="btn btn-primary" form="create-monitor" type="submit">
+            <button
+              className="btn btn-primary"
+              form="create-monitor"
+              type="submit"
+              disabled={saving}
+            >
               <Plus size={16} />
-              Create monitor
+              {saving ? 'Creating…' : 'Create monitor'}
             </button>
           </>
         }
       >
         <form id="create-monitor" onSubmit={create}>
+          {formError && (
+            <div className="banner banner-danger" style={{ marginBottom: 14 }}>
+              {formError}
+            </div>
+          )}
           <div className="field">
             <label htmlFor="m-name">Name</label>
             <input

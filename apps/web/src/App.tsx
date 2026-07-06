@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { AppShell } from './components/AppShell';
+import { Loading } from './components/ui';
 import { useAuth } from './lib/auth';
 import { AlertChannels } from './pages/AlertChannels';
 import { Dashboard } from './pages/Dashboard';
@@ -13,8 +14,15 @@ import { Register } from './pages/Register';
 import { Settings } from './pages/Settings';
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  return user ? <>{children}</> : <Navigate to="/login" replace />;
+  const { status } = useAuth();
+  if (status === 'loading') {
+    return (
+      <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
+        <Loading label="Restoring your session…" />
+      </div>
+    );
+  }
+  return status === 'authenticated' ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 export function App() {

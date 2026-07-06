@@ -1,48 +1,42 @@
-// Frontend domain types — mirror the API responses described in README §8.
-// These will be replaced by generated/shared DTOs once the API is wired up.
+// API response types — mirror packages/shared. Kept local so the browser bundle
+// doesn't pull in backend-only deps (class-validator etc.).
 
 export type MonitorStatus = 'UP' | 'DOWN' | 'PAUSED' | 'PENDING';
 export type HttpMethod = 'GET' | 'POST' | 'HEAD';
 export type AlertChannelType = 'EMAIL' | 'SLACK_WEBHOOK';
+export type UptimeWindow = '24h' | '7d' | '30d';
+export type ResultBucketSize = '1m' | '5m' | '15m' | '1h' | '6h' | '1d';
 
 export interface Monitor {
   id: string;
   name: string;
   url: string;
   method: HttpMethod;
-  intervalSeconds: 60 | 300 | 900;
+  intervalSeconds: number;
   expectedStatus: number;
   timeoutMs: number;
+  failureThreshold: number;
   status: MonitorStatus;
   consecutiveFailures: number;
-  /** Uptime ratio over the last 24h, 0..1. */
+  nextCheckAt: string;
+  createdAt: string;
   uptime24h: number;
-  uptime7d: number;
-  uptime30d: number;
-  /** Most recent response time in ms (null if never checked). */
   lastResponseMs: number | null;
   lastCheckedAt: string | null;
-  createdAt: string;
-}
-
-export interface CheckPoint {
-  /** ISO timestamp of the bucket. */
-  t: string;
-  /** Average response time in ms for the bucket. */
-  responseMs: number;
-  /** Whether the endpoint was up for this bucket. */
-  up: boolean;
 }
 
 export interface Incident {
   id: string;
-  monitorId: string;
-  monitorName: string;
   startedAt: string;
   resolvedAt: string | null;
-  cause: string;
-  /** Duration in seconds; for ongoing incidents this is "so far". */
+  cause: string | null;
   durationSeconds: number;
+}
+
+/** Incident enriched client-side with its monitor for the global views. */
+export interface IncidentWithMonitor extends Incident {
+  monitorId: string;
+  monitorName: string;
 }
 
 export interface AlertChannel {
@@ -52,10 +46,40 @@ export interface AlertChannel {
   enabled: boolean;
 }
 
-export interface CurrentUser {
-  id: string;
-  email: string;
-  name: string;
+export interface UptimeResult {
+  window: UptimeWindow;
+  uptime: number;
+  totalChecks: number;
+  successfulChecks: number;
 }
 
-export type UptimeWindow = '24h' | '7d' | '30d';
+export interface ResultBucket {
+  bucketStart: string;
+  avgResponseMs: number | null;
+  totalChecks: number;
+  successfulChecks: number;
+}
+
+export interface ResultsResult {
+  from: string;
+  to: string;
+  bucket: ResultBucketSize;
+  buckets: ResultBucket[];
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  user: AuthUser;
+}
+
+/** A point on the response-time chart, derived from a ResultBucket. */
+export interface CheckPoint {
+  t: string;
+  responseMs: number;
+  up: boolean;
+}

@@ -1,39 +1,39 @@
 import type { AlertChannelType, HttpMethod, ResultBucketSize, UptimeWindow } from './constants';
 
-/** Payload enqueued by the scheduler and consumed by the worker */
+// Payload enqueued by the scheduler and consumed by the worker
 export interface CheckJobMessage {
   monitorId: string;
   attempt: number;
 }
 
-/** Standard API error envelope */
+// Standard API error envelope
 export interface ApiErrorResponse {
   statusCode: number;
   message: string | string[];
   error: string;
 }
 
-/** Public-safe representation of an authenticated user. */
+// Public-safe representation of an authenticated user.
 export interface AuthUserDto {
   id: string;
   email: string;
 }
 
-/** Body returned by POST /auth/register and /auth/login (the refresh token is
- * delivered out-of-band as an httpOnly cookie, never in the JSON body). */
+// Body returned by POST /auth/register and /auth/login (the refresh token is
+// delivered out-of-band as an httpOnly cookie, never in the JSON body).
 export interface AuthResponse {
   accessToken: string;
   user: AuthUserDto;
 }
 
-/** Body returned by POST /auth/refresh. */
+// Body returned by POST /auth/refresh.
 export interface RefreshResponse {
   accessToken: string;
 }
 
 export type MonitorStatus = 'UP' | 'DOWN' | 'PAUSED' | 'PENDING';
 
-/** Public representation of a monitor returned by the API (no owner id). */
+// Public representation of a monitor returned by the API (no owner id).
 export interface MonitorResponse {
   id: string;
   name: string;
@@ -47,9 +47,12 @@ export interface MonitorResponse {
   consecutiveFailures: number;
   nextCheckAt: string;
   createdAt: string;
+  uptime24h: number;
+  lastResponseMs: number | null;
+  lastCheckedAt: string | null;
 }
 
-/** Public representation of an alert channel returned by the API. */
+// Public representation of an alert channel returned by the API.
 export interface AlertChannelResponse {
   id: string;
   type: AlertChannelType;
@@ -57,7 +60,7 @@ export interface AlertChannelResponse {
   enabled: boolean;
 }
 
-/** Public representation of an incident (outage) returned by the API. */
+// Public representation of an incident (outage) returned by the API.
 export interface IncidentResponse {
   id: string;
   startedAt: string;
@@ -66,25 +69,23 @@ export interface IncidentResponse {
   durationSeconds: number;
 }
 
-/** Response for GET /monitors/:id/uptime. */
+// Response for GET /monitors/:id/uptime. 
 export interface UptimeResponse {
   window: UptimeWindow;
-  /** Successful checks / total checks over the window, 0..1 (1 when no data). */
   uptime: number;
   totalChecks: number;
   successfulChecks: number;
 }
 
-/** One time bucket of the response-time series. */
+// One time bucket of the response-time series. 
 export interface ResultBucket {
   bucketStart: string;
-  /** Average response time (ms) of successful checks in the bucket, null if none. */
   avgResponseMs: number | null;
   totalChecks: number;
   successfulChecks: number;
 }
 
-/** Response for GET /monitors/:id/results. */
+// Response for GET /monitors/:id/results. 
 export interface ResultsResponse {
   from: string;
   to: string;

@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { getFleetStats } from '../lib/mock';
 import { useTheme } from '../lib/theme';
 
 const NAV = [
@@ -30,21 +29,14 @@ const TITLES: Record<string, string> = {
   '/app/settings': 'Settings',
 };
 
-function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-}
-
 export function AppShell() {
   const { theme, toggle } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const stats = getFleetStats();
+
+  const displayName = user?.email.split('@')[0] ?? 'User';
+  const initials = displayName.slice(0, 2).toUpperCase();
 
   const title =
     TITLES[location.pathname] ??
@@ -76,18 +68,15 @@ export function AppShell() {
             >
               <Icon size={18} />
               {label}
-              {to === '/app/incidents' && stats.ongoingIncidents > 0 && (
-                <span className="badge-count">{stats.ongoingIncidents}</span>
-              )}
             </NavLink>
           ))}
         </nav>
 
         <div className="sidebar-footer">
           <div className="user-chip">
-            <div className="avatar">{user ? initials(user.name) : 'U'}</div>
+            <div className="avatar">{initials}</div>
             <div className="meta">
-              <div className="name">{user?.name}</div>
+              <div className="name">{displayName}</div>
               <div className="email">{user?.email}</div>
             </div>
             <button

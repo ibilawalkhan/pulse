@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { STATUS_LABEL } from '../lib/format';
 import type { CheckPoint, MonitorStatus } from '../lib/types';
@@ -91,4 +92,34 @@ export function EmptyState({
 
 export function MethodTag({ method }: { method: string }) {
   return <span className="tag">{method}</span>;
+}
+
+export function Loading({ label = 'Loading…' }: { label?: string }) {
+  return (
+    <div className="empty">
+      <div className="spinner" />
+      <p className="muted" style={{ marginTop: 12 }}>
+        {label}
+      </p>
+    </div>
+  );
+}
+
+export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <div className="empty">
+      <div className="empty-ico" style={{ color: 'var(--down)' }}>
+        <AlertTriangle size={22} />
+      </div>
+      <h3>Couldn&apos;t load this</h3>
+      <p className="muted" style={{ maxWidth: 360, margin: '6px auto 16px' }}>
+        {message}
+      </p>
+      {onRetry && (
+        <button className="btn btn-ghost" onClick={onRetry}>
+          Try again
+        </button>
+      )}
+    </div>
+  );
 }

@@ -2,7 +2,9 @@ import { ArrowLeft, ExternalLink, Pause, Play, Siren } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ResponseTimeChart } from '../components/ResponseTimeChart';
-import { EmptyState, MethodTag, StatusPill } from '../components/ui';
+import { ErrorState, Loading, MethodTag, StatusPill } from '../components/ui';
+import { api } from '../lib/api';
+import { bucketsToPoints, windowRange } from '../lib/chart';
 import {
   formatDateTime,
   formatDuration,
@@ -12,49 +14,47 @@ import {
   timeAgo,
   WINDOW_LABEL,
 } from '../lib/format';
-import { getCheckSeries, getIncidentsForMonitor, getMonitor } from '../lib/mock';
-import type { MonitorStatus, UptimeWindow } from '../lib/types';
+import { useApi } from '../lib/useApi';
+import type { UptimeWindow } from '../lib/types';
 
 const WINDOWS: UptimeWindow[] = ['24h', '7d', '30d'];
 
 export function MonitorDetail() {
   const { id = '' } = useParams();
-  const monitor = getMonitor(id);
   const [window, setWindow] = useState<UptimeWindow>('24h');
-  const [status, setStatus] = useState<MonitorStatus | null>(monitor?.status ?? null);
 
-  const series = useMemo(
-    () => (monitor ? getCheckSeries(monitor.id, window) : []),
-    [monitor, window],
+  const monitorApi = useApi(() => api.monitors.get(id), [id]);
+  const uptimeApi = useApi(() => api.monitors.uptime(id, window), [id, window]);
+  const resultsApi = useApi(() => api.monitors.results(id, windowRange(window)), [id, window]);
+  const incidentsApi = useApi(() => api.monitors.incidents(id), [id]);
+
+  const points = useMemo(
+    () => (resultsApi.data ? bucketsToPoints(resultsApi.data) : []),
+    [resultsApi.data],
   );
-  const incidents = monitor ? getIncidentsForMonitor(monitor.id) : [];
-
   const avgResponse = useMemo(() => {
-    const up = series.filter((p) => p.up);
-    return up.length ? Math.round(up.reduce((s, p) => s + p.responseMs, 0) / up.length) : 0;
-  }, [series]);
+    const withData = points.filter((p) => p.up);
+    return withData.length
+      ? Math.round(withData.reduce((s, p) => s + p.responseMs, 0) / withData.length)
+      : null;
+  }, [points]);
 
-  if (!monitor) {
+  if (monitorApi.loading) {
+    return <Loading label="Loading monitor…" />;
+  }
+  if (monitorApi.error || !monitorApi.data) {
     return (
-      <EmptyState
-        icon={<Siren size={22} />}
-        title="Monitor not found"
-        text="This monitor may have been deleted."
-        action={
-          <Link to="/app/monitors" className="btn btn-primary">
-            Back to monitors
-          </Link>
-        }
-      />
+      <ErrorState message={monitorApi.error ?? 'Monitor not found'} onRetry={monitorApi.reload} />
     );
   }
 
-  const uptimeByWindow: Record<UptimeWindow, number> = {
-    '24h': monitor.uptime24h,
-    '7d': monitor.uptime7d,
-    '30d': monitor.uptime30d,
+  const monitor = monitorApi.data;
+  const incidents = incidentsApi.data ?? [];
+
+  const togglePause = async (): Promise<void> => {
+    await api.monitors.update(monitor.id, { paused: monitor.status !== 'PAUSED' });
+    monitorApi.reload();
   };
-  const effectiveStatus = status ?? monitor.status;
 
   return (
     <>
@@ -66,7 +66,7 @@ export function MonitorDetail() {
         <span className="muted">{monitor.name}</span>
       </div>
 
-      {effectiveStatus === 'DOWN' && (
+      {monitor.status === 'DOWN' && (
         <div className="banner banner-danger">
           <Siren size={18} />
           <span>
@@ -80,7 +80,7 @@ export function MonitorDetail() {
         <div>
           <div className="row" style={{ gap: 12 }}>
             <h1>{monitor.name}</h1>
-            <StatusPill status={effectiveStatus} />
+            <StatusPill status={monitor.status} />
           </div>
           <div className="row" style={{ gap: 8, marginTop: 8 }}>
             <MethodTag method={monitor.method} />
@@ -97,28 +97,25 @@ export function MonitorDetail() {
           </div>
         </div>
         <div className="row">
-          <button
-            className="btn btn-ghost"
-            onClick={() => setStatus(effectiveStatus === 'PAUSED' ? 'UP' : 'PAUSED')}
-          >
-            {effectiveStatus === 'PAUSED' ? <Play size={16} /> : <Pause size={16} />}
-            {effectiveStatus === 'PAUSED' ? 'Resume' : 'Pause'}
+          <button className="btn btn-ghost" onClick={togglePause}>
+            {monitor.status === 'PAUSED' ? <Play size={16} /> : <Pause size={16} />}
+            {monitor.status === 'PAUSED' ? 'Resume' : 'Pause'}
           </button>
         </div>
       </div>
 
       <div className="grid grid-stats" style={{ marginBottom: 18 }}>
         <div className="card stat">
-          <div className="label">Uptime (24h)</div>
-          <div className="value">{formatUptime(monitor.uptime24h)}</div>
+          <div className="label">Uptime ({window})</div>
+          <div className="value">{uptimeApi.data ? formatUptime(uptimeApi.data.uptime) : '—'}</div>
         </div>
         <div className="card stat">
-          <div className="label">Uptime (7d)</div>
-          <div className="value">{formatUptime(monitor.uptime7d)}</div>
+          <div className="label">Checks ({window})</div>
+          <div className="value">{uptimeApi.data?.totalChecks ?? '—'}</div>
         </div>
         <div className="card stat">
-          <div className="label">Avg response</div>
-          <div className="value">{formatResponse(avgResponse || monitor.lastResponseMs)}</div>
+          <div className="label">Avg response ({window})</div>
+          <div className="value">{formatResponse(avgResponse ?? monitor.lastResponseMs)}</div>
         </div>
         <div className="card stat">
           <div className="label">Last check</div>
@@ -132,9 +129,7 @@ export function MonitorDetail() {
         <div className="card-head">
           <div>
             <h3>Response time</h3>
-            <span className="sub">
-              {WINDOW_LABEL[window]} · uptime {formatUptime(uptimeByWindow[window])}
-            </span>
+            <span className="sub">{WINDOW_LABEL[window]}</span>
           </div>
           <div className="seg" style={{ marginLeft: 'auto' }}>
             {WINDOWS.map((w) => (
@@ -145,12 +140,20 @@ export function MonitorDetail() {
           </div>
         </div>
         <div className="card-pad">
-          <ResponseTimeChart
-            series={series}
-            window={window}
-            color={effectiveStatus === 'DOWN' ? '#ef4444' : '#6366f1'}
-            height={300}
-          />
+          {resultsApi.loading ? (
+            <Loading label="Loading chart…" />
+          ) : points.length === 0 ? (
+            <div className="empty">
+              <p className="muted">No check data for this window yet.</p>
+            </div>
+          ) : (
+            <ResponseTimeChart
+              series={points}
+              window={window}
+              color={monitor.status === 'DOWN' ? '#ef4444' : '#6366f1'}
+              height={300}
+            />
+          )}
         </div>
       </div>
 
@@ -159,12 +162,15 @@ export function MonitorDetail() {
           <div className="card-head">
             <h3>Incident history</h3>
           </div>
-          {incidents.length === 0 ? (
-            <EmptyState
-              icon={<Siren size={20} />}
-              title="No incidents"
-              text="This monitor hasn't had any recorded outages. Nice."
-            />
+          {incidentsApi.loading ? (
+            <Loading label="Loading incidents…" />
+          ) : incidents.length === 0 ? (
+            <div className="empty">
+              <div className="empty-ico">
+                <Siren size={20} />
+              </div>
+              <p className="muted">No recorded outages. Nice.</p>
+            </div>
           ) : (
             <table className="table">
               <thead>
@@ -180,7 +186,7 @@ export function MonitorDetail() {
                   <tr key={inc.id}>
                     <td>{formatDateTime(inc.startedAt)}</td>
                     <td>{formatDuration(inc.durationSeconds)}</td>
-                    <td className="muted">{inc.cause}</td>
+                    <td className="muted">{inc.cause ?? '—'}</td>
                     <td>
                       {inc.resolvedAt ? (
                         <span className="pill pill-up">
@@ -208,7 +214,10 @@ export function MonitorDetail() {
             <ConfigRow label="Check interval" value={formatInterval(monitor.intervalSeconds)} />
             <ConfigRow label="Expected status" value={String(monitor.expectedStatus)} />
             <ConfigRow label="Timeout" value={`${monitor.timeoutMs} ms`} />
-            <ConfigRow label="Failure threshold" value="2 consecutive" />
+            <ConfigRow
+              label="Failure threshold"
+              value={`${monitor.failureThreshold} consecutive`}
+            />
             <ConfigRow label="Created" value={formatDateTime(monitor.createdAt)} last />
           </div>
         </div>

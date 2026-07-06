@@ -2,30 +2,41 @@ import { Bell, Mail, Plus, Slack, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Modal } from '../components/Modal';
-import { EmptyState } from '../components/ui';
-import { alertChannels as seed } from '../lib/mock';
+import { EmptyState, ErrorState, Loading } from '../components/ui';
+import { api, apiErrorMessage } from '../lib/api';
+import { useApi } from '../lib/useApi';
 import type { AlertChannel, AlertChannelType } from '../lib/types';
 
 export function AlertChannels() {
-  const [channels, setChannels] = useState<AlertChannel[]>(seed);
+  const { data, loading, error, reload } = useApi(() => api.alertChannels.list(), []);
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<AlertChannelType>('EMAIL');
   const [destination, setDestination] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const toggle = (id: string): void => {
-    setChannels((prev) => prev.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c)));
+  const channels: AlertChannel[] = data ?? [];
+
+  const remove = async (id: string): Promise<void> => {
+    await api.alertChannels.remove(id);
+    reload();
   };
 
-  const remove = (id: string): void => {
-    setChannels((prev) => prev.filter((c) => c.id !== id));
-  };
-
-  const add = (e: FormEvent): void => {
+  const add = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
-    setChannels((prev) => [{ id: `ch_${Date.now()}`, type, destination, enabled: true }, ...prev]);
-    setDestination('');
-    setType('EMAIL');
-    setOpen(false);
+    setFormError(null);
+    setSaving(true);
+    try {
+      await api.alertChannels.create({ type, destination });
+      setDestination('');
+      setType('EMAIL');
+      setOpen(false);
+      reload();
+    } catch (err) {
+      setFormError(apiErrorMessage(err, 'Could not add channel'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -42,7 +53,11 @@ export function AlertChannels() {
       </div>
 
       <div className="card">
-        {channels.length === 0 ? (
+        {loading ? (
+          <Loading label="Loading channels…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={reload} />
+        ) : channels.length === 0 ? (
           <EmptyState
             icon={<Bell size={22} />}
             title="No alert channels yet"
@@ -60,7 +75,7 @@ export function AlertChannels() {
               <tr>
                 <th>Channel</th>
                 <th>Destination</th>
-                <th>Enabled</th>
+                <th>Status</th>
                 <th />
               </tr>
             </thead>
@@ -93,10 +108,9 @@ export function AlertChannels() {
                     {c.destination}
                   </td>
                   <td>
-                    <label className="switch">
-                      <input type="checkbox" checked={c.enabled} onChange={() => toggle(c.id)} />
-                      <span className="slider" />
-                    </label>
+                    <span className={`pill ${c.enabled ? 'pill-up' : 'pill-pending'}`}>
+                      <span className="dot" /> {c.enabled ? 'Enabled' : 'Disabled'}
+                    </span>
                   </td>
                   <td style={{ width: 48 }}>
                     <button
@@ -124,14 +138,19 @@ export function AlertChannels() {
             <button className="btn btn-ghost" onClick={() => setOpen(false)}>
               Cancel
             </button>
-            <button className="btn btn-primary" form="add-channel" type="submit">
+            <button className="btn btn-primary" form="add-channel" type="submit" disabled={saving}>
               <Plus size={16} />
-              Add channel
+              {saving ? 'Adding…' : 'Add channel'}
             </button>
           </>
         }
       >
         <form id="add-channel" onSubmit={add}>
+          {formError && (
+            <div className="banner banner-danger" style={{ marginBottom: 14 }}>
+              {formError}
+            </div>
+          )}
           <div className="field">
             <label htmlFor="c-type">Channel type</label>
             <select

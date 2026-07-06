@@ -791,6 +791,21 @@ button {
   padding: 56px 24px;
   color: var(--text-muted);
 }
+.spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--surface-border);
+  border-top-color: var(--brand);
+  margin: 0 auto;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .empty .empty-ico {
   width: 56px;
   height: 56px;

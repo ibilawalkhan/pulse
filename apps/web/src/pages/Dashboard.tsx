@@ -1,26 +1,80 @@
-import { Activity, ArrowUpRight, CheckCircle2, Clock, Plus, Siren, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
+import { Activity, CheckCircle2, Clock, Plus, Siren } from 'lucide-react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ResponseTimeChart } from '../components/ResponseTimeChart';
-import { Stat, StatusPill } from '../components/ui';
-import { formatDuration, formatResponse, formatUptime, timeAgo, WINDOW_LABEL } from '../lib/format';
-import { getCheckSeries, getFleetStats, incidents, monitors } from '../lib/mock';
-import type { UptimeWindow } from '../lib/types';
+import { ErrorState, Loading, Stat, StatusPill } from '../components/ui';
+import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { bucketsToPoints, windowRange } from '../lib/chart';
+import { formatDuration, formatResponse, formatUptime, timeAgo } from '../lib/format';
+import { useApi } from '../lib/useApi';
+import type { IncidentWithMonitor, Monitor } from '../lib/types';
 
-const WINDOWS: UptimeWindow[] = ['24h', '7d', '30d'];
+interface DashboardData {
+  monitors: Monitor[];
+  incidents: IncidentWithMonitor[];
+}
+
+async function loadDashboard(): Promise<DashboardData> {
+  const monitors = await api.monitors.list();
+  const nested = await Promise.all(
+    monitors.map((m) =>
+      api.monitors
+        .incidents(m.id)
+        .then((list) => list.map((i) => ({ ...i, monitorId: m.id, monitorName: m.name }))),
+    ),
+  );
+  const incidents = nested
+    .flat()
+    .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+  return { monitors, incidents };
+}
 
 export function Dashboard() {
-  const stats = getFleetStats();
-  const [window, setWindow] = useState<UptimeWindow>('24h');
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useApi(loadDashboard, []);
+
+  const monitors = data?.monitors ?? [];
   const featured = monitors[0];
-  const series = getCheckSeries(featured.id, window);
-  const recentIncidents = incidents.slice(0, 4);
+  const chartApi = useApi(
+    () =>
+      featured ? api.monitors.results(featured.id, windowRange('24h')) : Promise.resolve(null),
+    [featured?.id],
+  );
+  const points = useMemo(
+    () => (chartApi.data ? bucketsToPoints(chartApi.data) : []),
+    [chartApi.data],
+  );
+
+  const stats = useMemo(() => {
+    const active = monitors.filter((m) => m.status === 'UP' || m.status === 'DOWN');
+    const responding = monitors.filter((m) => m.lastResponseMs != null);
+    return {
+      total: monitors.length,
+      up: monitors.filter((m) => m.status === 'UP').length,
+      down: monitors.filter((m) => m.status === 'DOWN').length,
+      paused: monitors.filter((m) => m.status === 'PAUSED').length,
+      pending: monitors.filter((m) => m.status === 'PENDING').length,
+      avgUptime: active.length ? active.reduce((s, m) => s + m.uptime24h, 0) / active.length : 1,
+      avgResponse: responding.length
+        ? Math.round(
+            responding.reduce((s, m) => s + (m.lastResponseMs ?? 0), 0) / responding.length,
+          )
+        : 0,
+      ongoing: (data?.incidents ?? []).filter((i) => !i.resolvedAt).length,
+    };
+  }, [monitors, data]);
+
+  const name = user?.email.split('@')[0] ?? 'there';
+
+  if (loading) return <Loading label="Loading your dashboard…" />;
+  if (error) return <ErrorState message={error} onRetry={reload} />;
 
   return (
     <>
       <div className="page-header">
         <div>
-          <h1>Good to see you, Bilawal 👋</h1>
+          <h1>Good to see you, {name} 👋</h1>
           <p>Here&apos;s how your services are performing right now.</p>
         </div>
         <Link to="/app/monitors" className="btn btn-primary">
@@ -36,31 +90,29 @@ export function Dashboard() {
           icon={<CheckCircle2 size={19} />}
           iconBg="var(--up-soft)"
           iconColor="var(--up)"
-          trend={{ dir: 'pos', text: 'All core services online', icon: <TrendingUp size={13} /> }}
         />
         <Stat
           label="Avg uptime (24h)"
-          value={formatUptime(stats.avgUptime24h)}
+          value={formatUptime(stats.avgUptime)}
           icon={<Activity size={19} />}
           iconBg="var(--brand-soft)"
           iconColor="var(--brand)"
-          trend={{ dir: 'pos', text: '+0.04% vs yesterday', icon: <ArrowUpRight size={13} /> }}
         />
         <Stat
           label="Avg response"
-          value={formatResponse(stats.avgResponseMs)}
+          value={formatResponse(stats.avgResponse)}
           icon={<Clock size={19} />}
           iconBg="var(--warn-soft)"
           iconColor="var(--warn)"
         />
         <Stat
           label="Ongoing incidents"
-          value={stats.ongoingIncidents}
+          value={stats.ongoing}
           icon={<Siren size={19} />}
           iconBg="var(--down-soft)"
           iconColor="var(--down)"
           trend={
-            stats.ongoingIncidents > 0
+            stats.ongoing > 0
               ? { dir: 'neg', text: 'Needs attention' }
               : { dir: 'pos', text: 'All clear' }
           }
@@ -71,23 +123,24 @@ export function Dashboard() {
         <div className="card">
           <div className="card-head">
             <div>
-              <h3>{featured.name}</h3>
-              <span className="sub">Response time · {WINDOW_LABEL[window]}</span>
-            </div>
-            <div className="seg" style={{ marginLeft: 'auto' }}>
-              {WINDOWS.map((w) => (
-                <button
-                  key={w}
-                  className={w === window ? 'active' : ''}
-                  onClick={() => setWindow(w)}
-                >
-                  {w}
-                </button>
-              ))}
+              <h3>{featured ? featured.name : 'Response time'}</h3>
+              <span className="sub">Last 24 hours</span>
             </div>
           </div>
           <div className="card-pad">
-            <ResponseTimeChart series={series} window={window} />
+            {!featured ? (
+              <div className="empty">
+                <p className="muted">Add a monitor to see response times.</p>
+              </div>
+            ) : chartApi.loading ? (
+              <Loading label="Loading chart…" />
+            ) : points.length === 0 ? (
+              <div className="empty">
+                <p className="muted">No checks recorded yet — data appears once the worker runs.</p>
+              </div>
+            ) : (
+              <ResponseTimeChart series={points} window="24h" />
+            )}
           </div>
         </div>
 
@@ -110,17 +163,6 @@ export function Dashboard() {
               total={stats.total}
               color="var(--pending)"
             />
-            <div className="divider" />
-            <div className="kpi-inline">
-              <div className="kpi">
-                <div className="v">{stats.total}</div>
-                <div className="l">Total monitors</div>
-              </div>
-              <div className="kpi">
-                <div className="v">{formatUptime(stats.avgUptime24h)}</div>
-                <div className="l">Avg uptime</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -137,35 +179,41 @@ export function Dashboard() {
               View all
             </Link>
           </div>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Monitor</th>
-                <th>Status</th>
-                <th>Uptime 24h</th>
-                <th>Response</th>
-              </tr>
-            </thead>
-            <tbody>
-              {monitors.slice(0, 5).map((m) => (
-                <tr key={m.id}>
-                  <td>
-                    <Link to={`/app/monitors/${m.id}`} className="cell-strong">
-                      {m.name}
-                    </Link>
-                    <div className="faint mono" style={{ fontSize: 11.5 }}>
-                      {m.url}
-                    </div>
-                  </td>
-                  <td>
-                    <StatusPill status={m.status} />
-                  </td>
-                  <td>{formatUptime(m.uptime24h)}</td>
-                  <td>{formatResponse(m.lastResponseMs)}</td>
+          {monitors.length === 0 ? (
+            <div className="empty">
+              <p className="muted">No monitors yet.</p>
+            </div>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Monitor</th>
+                  <th>Status</th>
+                  <th>Uptime 24h</th>
+                  <th>Response</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {monitors.slice(0, 5).map((m) => (
+                  <tr key={m.id}>
+                    <td>
+                      <Link to={`/app/monitors/${m.id}`} className="cell-strong">
+                        {m.name}
+                      </Link>
+                      <div className="faint mono" style={{ fontSize: 11.5 }}>
+                        {m.url}
+                      </div>
+                    </td>
+                    <td>
+                      <StatusPill status={m.status} />
+                    </td>
+                    <td>{formatUptime(m.uptime24h)}</td>
+                    <td>{formatResponse(m.lastResponseMs)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="card">
@@ -179,51 +227,60 @@ export function Dashboard() {
               View all
             </Link>
           </div>
-          <div className="stack" style={{ padding: '6px 0' }}>
-            {recentIncidents.map((inc) => (
-              <Link
-                to="/app/incidents"
-                key={inc.id}
-                className="row"
-                style={{ padding: '12px 20px', gap: 12 }}
-              >
-                <span
-                  className="stat-icon"
-                  style={{
-                    background: inc.resolvedAt ? 'var(--up-soft)' : 'var(--down-soft)',
-                    color: inc.resolvedAt ? 'var(--up)' : 'var(--down)',
-                    margin: 0,
-                    width: 34,
-                    height: 34,
-                  }}
+          {(data?.incidents ?? []).length === 0 ? (
+            <div className="empty">
+              <div className="empty-ico">
+                <CheckCircle2 size={20} />
+              </div>
+              <p className="muted">No incidents — all healthy.</p>
+            </div>
+          ) : (
+            <div className="stack" style={{ padding: '6px 0' }}>
+              {(data?.incidents ?? []).slice(0, 4).map((inc) => (
+                <Link
+                  to="/app/incidents"
+                  key={inc.id}
+                  className="row"
+                  style={{ padding: '12px 20px', gap: 12 }}
                 >
-                  <Siren size={16} />
-                </span>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="cell-strong">{inc.monitorName}</div>
-                  <div
-                    className="faint"
+                  <span
+                    className="stat-icon"
                     style={{
-                      fontSize: 12,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
+                      background: inc.resolvedAt ? 'var(--up-soft)' : 'var(--down-soft)',
+                      color: inc.resolvedAt ? 'var(--up)' : 'var(--down)',
+                      margin: 0,
+                      width: 34,
+                      height: 34,
                     }}
                   >
-                    {inc.cause}
+                    <Siren size={16} />
+                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="cell-strong">{inc.monitorName}</div>
+                    <div
+                      className="faint"
+                      style={{
+                        fontSize: 12,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {inc.cause ?? 'Outage'}
+                    </div>
                   </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 12 }} className="muted">
-                    {timeAgo(inc.startedAt)}
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 12 }} className="muted">
+                      {timeAgo(inc.startedAt)}
+                    </div>
+                    <div className="faint" style={{ fontSize: 11.5 }}>
+                      {inc.resolvedAt ? formatDuration(inc.durationSeconds) : 'ongoing'}
+                    </div>
                   </div>
-                  <div className="faint" style={{ fontSize: 11.5 }}>
-                    {inc.resolvedAt ? formatDuration(inc.durationSeconds) : 'ongoing'}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -255,15 +312,7 @@ function StatusRow({
         <span className="cell-strong">{count}</span>
       </div>
       <div style={{ height: 6, background: 'var(--bg-subtle)', borderRadius: 999 }}>
-        <div
-          style={{
-            height: '100%',
-            width: `${pct}%`,
-            background: color,
-            borderRadius: 999,
-            transition: 'width 300ms',
-          }}
-        />
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 999 }} />
       </div>
     </div>
   );
