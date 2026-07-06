@@ -37,9 +37,10 @@ resource "aws_db_instance" "main" {
   publicly_accessible    = false
   multi_az               = false
 
-  backup_retention_period = 7
-  skip_final_snapshot     = true
-  deletion_protection     = false
+  backup_retention_period   = 7
+  deletion_protection       = var.db_protect
+  skip_final_snapshot       = !var.db_protect
+  final_snapshot_identifier = var.db_protect ? "${local.name}-final-snapshot" : null
 
   tags = { Name = "${local.name}-postgres" }
 }

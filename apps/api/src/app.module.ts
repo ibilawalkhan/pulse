@@ -1,5 +1,7 @@
+import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { LoggerModule } from 'nestjs-pino';
 import { AlertChannelsModule } from './alert-channels/alert-channels.module';
 import { AuthModule } from './auth/auth.module';
@@ -29,6 +31,13 @@ import { StatsModule } from './stats/stats.module';
     AlertChannelsModule,
     IncidentsModule,
     StatsModule,
+    // Serve the built React app (same origin as the API). The API route
+    // prefixes are excluded so they fall through to the controllers; every
+    // other path returns index.html for client-side routing.
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'web', 'dist'),
+      exclude: ['/auth(.*)', '/monitors(.*)', '/alert-channels(.*)', '/health(.*)', '/docs(.*)'],
+    }),
   ],
 })
 export class AppModule {}

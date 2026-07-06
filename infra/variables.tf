@@ -50,6 +50,12 @@ variable "db_username" {
   default     = "pulse"
 }
 
+variable "db_protect" {
+  description = "Production safeguards for RDS: deletion protection + final snapshot on destroy. Set false to allow easy teardown (e.g. a portfolio demo)."
+  type        = bool
+  default     = true
+}
+
 variable "image_tag" {
   description = "Container image tag to deploy (git SHA). Set by the CD pipeline."
   type        = string

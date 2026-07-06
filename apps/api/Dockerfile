@@ -14,10 +14,10 @@ COPY apps/worker/package.json apps/worker/
 COPY apps/web/package.json apps/web/
 RUN npm ci
 
-# Build the shared packages + this app, generating the Prisma client.
+# Build the shared packages, the API, and the React frontend (the API serves it).
 COPY . .
 RUN npx prisma generate --schema packages/db/prisma/schema.prisma \
-  && npm run build --workspace packages/db --workspace packages/shared --workspace apps/api
+  && npm run build --workspace packages/db --workspace packages/shared --workspace apps/api --workspace apps/web
 
 FROM node:20-alpine AS runner
 ENV NODE_ENV=production
@@ -30,6 +30,8 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+# The built React app, served by the API at the root path.
+COPY --from=builder /app/apps/web/dist ./apps/web/dist
 
 EXPOSE 3000
 CMD ["node", "apps/api/dist/main.js"]
