@@ -69,7 +69,7 @@ export interface IncidentResponse {
   durationSeconds: number;
 }
 
-// Response for GET /monitors/:id/uptime. 
+// Response for GET /monitors/:id/uptime.
 export interface UptimeResponse {
   window: UptimeWindow;
   uptime: number;
@@ -77,7 +77,7 @@ export interface UptimeResponse {
   successfulChecks: number;
 }
 
-// One time bucket of the response-time series. 
+// One time bucket of the response-time series.
 export interface ResultBucket {
   bucketStart: string;
   avgResponseMs: number | null;
@@ -85,7 +85,7 @@ export interface ResultBucket {
   successfulChecks: number;
 }
 
-// Response for GET /monitors/:id/results. 
+// Response for GET /monitors/:id/results.
 export interface ResultsResponse {
   from: string;
   to: string;
