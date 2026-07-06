@@ -1,5 +1,3 @@
-// Pulse data model — see README.md §3 for the ER diagram and indexing notes.
-
 generator client {
   provider = "prisma-client-js"
 }
