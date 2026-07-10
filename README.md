@@ -320,7 +320,40 @@ infra/
 | `api-5xx` | ALB 5xx count > 10 in 5 min | SNS → email |
 | `rds-cpu` | CPU > 80% for 10 min | SNS → email |
 
-**Estimated monthly cost:** ~AUD $0–15 in the first 12 months (free tier covers Fargate partially, RDS t4g.micro, SQS, SES sandbox).
+**Estimated monthly cost:** running always-on is ~US$30–45/mo (the ALB is ~US$16 and isn't free-tier; plus RDS t4g.micro + Fargate). Everything is IaC, the intended workflow is **deploy → capture a demo → `terraform destroy`**, then spin it back.
+
+### Deploying to AWS
+
+**Prerequisites:** an AWS account, a registered domain with a **Route 53 hosted zone**, and a verified **SES** sender address (SES starts in sandbox — verify recipients too, or request production access).
+
+**One-time bootstrap** (the deploy IAM role is created *by* Terraform, so the first apply runs locally):
+
+```bash
+# 1. Create the remote-state backend (once)
+aws s3api create-bucket --bucket <state-bucket> --region ap-southeast-2 \
+  --create-bucket-configuration LocationConstraint=ap-southeast-2
+aws dynamodb create-table --table-name <lock-table> \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST
+
+# 2. Provide the required variables (infra/terraform.tfvars)
+#    domain_name, hosted_zone_id, ses_from_address, alarm_email, github_repository
+
+# 3. First apply (locally, with your AWS credentials)
+cd infra
+terraform init -backend-config="bucket=<state-bucket>" \
+  -backend-config="dynamodb_table=<lock-table>" -backend-config="region=ap-southeast-2"
+terraform apply
+```
+
+Then set the GitHub repo **variables** (`AWS_DEPLOY_ROLE_ARN`, `DOMAIN_NAME`, `HOSTED_ZONE_ID`, `SES_FROM_ADDRESS`, `ALARM_EMAIL`, `TF_STATE_BUCKET`, `TF_LOCK_TABLE`) from the Terraform outputs, and confirm the SNS alarm-subscription email. After that, **every push to `main` auto-deploys** via OIDC (`deploy.yml`): build → push SHA-tagged images → `terraform apply` → migrate → smoke-test `/health`.
+
+**Spin up / tear down** (single command each):
+
+```bash
+terraform apply                            # bring the whole stack up (~15 min)
+terraform destroy -var db_protect=false    # tear it down (removes RDS too)
+```
 
 ---
 
