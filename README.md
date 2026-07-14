@@ -505,7 +505,7 @@ LocalStack emulates SQS locally so the full scheduler → queue → worker path 
 | `SQS_QUEUE_URL` | scheduler, worker | Check-jobs queue |
 | `AWS_REGION` | all | `ap-southeast-2` |
 | `SES_FROM_ADDRESS` | worker | Verified sender |
-| `CHECK_DEFAULT_TIMEOUT_MS` | worker | Default 10000 |
+| `CHECK_DEFAULT_TIMEOUT_MS` | worker | Default 10000 | 
 | `LOG_LEVEL` | all | `info` in prod, `debug` locally |
 
 Production values live in AWS Secrets Manager and are injected into task definitions by Terraform — never committed, never in GitHub secrets (except the OIDC role ARN).
